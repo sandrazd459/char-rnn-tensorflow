@@ -1,6 +1,7 @@
 from __future__ import print_function
 import tensorflow as tf
 
+import matplotlib.pyplot as plt 
 import argparse
 import time
 import os
@@ -8,6 +9,8 @@ from six.moves import cPickle
 
 from utils import TextLoader
 from model import Model
+import time
+import numpy as np
 
 
 def main():
@@ -19,9 +22,9 @@ def main():
                         help='directory to store checkpointed models')
     parser.add_argument('--log_dir', type=str, default='logs',
                         help='directory to store tensorboard logs')
-    parser.add_argument('--rnn_size', type=int, default=128,
+    parser.add_argument('--rnn_size', type=int, default=512,
                         help='size of RNN hidden state')
-    parser.add_argument('--num_layers', type=int, default=2,
+    parser.add_argument('--num_layers', type=int, default=3,
                         help='number of layers in the RNN')
     parser.add_argument('--model', type=str, default='lstm',
                         help='rnn, gru, lstm, or nas')
@@ -52,7 +55,11 @@ def main():
                             'model.ckpt-*'      : file(s) with model definition (created by tf)
                         """)
     args = parser.parse_args()
+    
+    start_time = time.time()
     train(args)
+    elapsed_time = time.time() - start_time
+    print(elapsed_time)
 
 
 def train(args):
@@ -90,7 +97,8 @@ def train(args):
         cPickle.dump((data_loader.chars, data_loader.vocab), f)
 
     model = Model(args)
-
+    
+    train_stat = []
     with tf.Session() as sess:
         # instrument for tensorboard
         summaries = tf.summary.merge_all()
@@ -121,6 +129,7 @@ def train(args):
                 writer.add_summary(summ, e * data_loader.num_batches + b)
 
                 end = time.time()
+                train_stat.append(train_loss)
                 print("{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}"
                       .format(e * data_loader.num_batches + b,
                               args.num_epochs * data_loader.num_batches,
@@ -134,6 +143,14 @@ def train(args):
                                global_step=e * data_loader.num_batches + b)
                     print("model saved to {}".format(checkpoint_path))
 
+    
+    plt.plot(np.arange(len(train_stat)),train_stat, label = "training loss", linestyle='--')
+    plt.xlabel('iteration')
+    plt.ylabel('training loss')
+    plt.legend(loc="best")
+    plt.title('Graph of training Loss')  
+    plt.show()
+    return 
 
 if __name__ == '__main__':
     main()
